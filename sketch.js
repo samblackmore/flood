@@ -12,6 +12,7 @@ function setup() {
   //cellSize = Math.floor(minSide / gridSize);
   grid = new Grid(maze);
   mouse = new Character(0, gridSize-1);
+  mouse.map = mouse.makeMap(maze);
 }
 
 function draw() {
@@ -49,7 +50,22 @@ function Character(row, col) {
   this.x = this.row * cellSize + offset;
   this.y = this.col * cellSize + offset;
   this.diameter = cellSize/3;
+  this.map;
   this.draw = function() {
     fill(255, 204, 0).stroke(0).strokeWeight(1).ellipse(this.x, this.y, this.diameter, this.diameter);
   }
+}
+
+Character.prototype.makeMap = function(rows) {
+  return rows.map(function(row, i) {
+    return row.map(function(cell, j) {
+      return {
+        walls: cell.split(""),
+        counted: false,
+        distance: 0,
+        x: j * cellSize,
+        y: i * cellSize
+      }
+    });
+  });
 }
