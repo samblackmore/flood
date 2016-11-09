@@ -33,7 +33,7 @@ function Grid(walls) {
         var d = cellSize, x = j * d, y = i * d;
 
         fill(bkCol + 10).stroke(bkCol - 10).rect(x, y, d, d);   //outline
-        stroke(0);
+        stroke(0).strokeWeight(1);
         if (found(cell, 'N')) line(x, y, x + d, y);
         if (found(cell, 'E')) line(x + d, y, x + d, y + d);
         if (found(cell, 'S')) line(x, y + d, x + d, y + d);
@@ -53,6 +53,11 @@ function Character(row, col) {
   this.map;
   this.draw = function() {
     fill(255, 204, 0).stroke(0).strokeWeight(1).ellipse(this.x, this.y, this.diameter, this.diameter);
+    this.map.forEach(function(row) {
+      row.forEach(function(cell) {
+        fill(0).strokeWeight(0).textAlign(CENTER,CENTER).text(String(cell.distance), cell.x + offset, cell.y + offset);
+      });
+    });
   }
 }
 
