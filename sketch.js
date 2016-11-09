@@ -13,6 +13,7 @@ function setup() {
   grid = new Grid(maze);
   mouse = new Character(0, gridSize-1);
   mouse.map = mouse.makeMap(maze);
+  mouse.seek(8,7);
 }
 
 function draw() {
@@ -65,10 +66,47 @@ function Character(row, col) {
   this.y = this.col * cellSize + offset;
   this.diameter = cellSize/3;
   this.map;
+
+  this.getNeighbour = function(row, col, dir) {
+    switch(dir) {
+      case 'N': try {return this.map[row][col-1]} catch (e) {return null}
+      case 'E': try {return this.map[row+1][col]} catch (e) {return null}
+      case 'S': try {return this.map[row][col+1]} catch (e) {return null}
+      case 'W': try {return this.map[row-1][col]} catch (e) {return null}
+    }
+  }
+
+  this.getNeighbours = function(row, col, dirs) {
+    var me = this;
+    return dirs.map(function(dir) {
+      return me.getNeighbour(row, col, dir);
+    });
+  }
+
+  this.getAccessibleDirections = function(row, col) {
+    var me = this;
+    return ['N','E','S','W'].filter(function(dir) {
+      return found(me.map[row][col].walls, dir);
+    });
+  }
+
+  this.getAccessibleNeighbours = function(row, col) {
+    return this.getNeighbours(row, col, this.getAccessibleDirections(row, col));
+  }
+
+  this.seek = function(row, col) {
+    var dest = this.map[row][col];
+    dest.counted = 1;
+    this.getAccessibleNeighbours(row, col).forEach(function(cell) {
+      cell.counted = 1;
+      cell.distance = dest.distance + 1;
+    })
+  }
+
   this.draw = function() {
     fill(255, 204, 0).stroke(0).strokeWeight(1).ellipse(this.x, this.y, this.diameter, this.diameter);
     forEach2D(this.map, function(cell, i, j) {
-      fill(0).strokeWeight(0).textAlign(CENTER,CENTER).text(String(cell.distance), cell.x + offset, cell.y + offset);
+      fill(cell.counted*255).strokeWeight(0).textAlign(CENTER,CENTER).text(String(cell.distance), cell.x + offset, cell.y + offset);
     });
   }
 }
@@ -79,6 +117,8 @@ Character.prototype.makeMap = function(maze) {
       walls: cell.split(""),
       counted: false,
       distance: 0,
+      row: i,
+      col: j,
       x: j * cellSize,
       y: i * cellSize
     }
