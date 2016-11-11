@@ -9,22 +9,29 @@ var maze = [["NW", "NE", "NW", "NS", "NS", "NS", "NS", "NS", "N", "N", "NS", "NS
 function setup() {
   createCanvas(gridSize*cellSize+1, gridSize*cellSize+1);
   background(bkCol);
+  noLoop();
   //var minSide = (width < height ? width : height) - 1;
   //cellSize = Math.floor(minSide / gridSize);
   grid = new Grid(maze);
   mouse = new Character(0, gridSize-1);
   mouse.map = mouse.makeMap(maze);
-  mouse.seek(8,7);
 }
 
 function draw() {
-
-  mouse.draw();
   grid.draw();
+  mouse.seek(8,7);
+  mouse.draw();
 }
 
 function found(place, thing) {
   return place.indexOf(thing) != -1;
+}
+
+function foundObject(list, obj) {
+  for (var i = 0; i < list.length; i++) {
+    if (list[i] === obj) {return true;}
+  }
+  return false;
 }
 
 function map2D(rows, func) {
@@ -50,7 +57,7 @@ function Grid(walls) {
     forEach2D(this.walls, function(cell, i, j) {
       var d = cellSize, x = j * d, y = i * d;
 
-      //fill(bkCol + 10).stroke(bkCol - 10).rect(x, y, d, d);   //outline
+      fill(bkCol + 10).stroke(bkCol - 10).rect(x, y, d, d);
       stroke(0).strokeWeight(1);
       if (found(cell, 'N')) line(x, y, x + d, y);
       if (found(cell, 'E')) line(x + d, y, x + d, y + d);
@@ -97,29 +104,36 @@ function Character(row, col) {
   }
 
   this.seek = function(row, col) {
-    var me = this;
+    var me = this,
+        stack = [me.map[row][col]],
+        distance = 0;
 
-    function recurse(row, col, dist) {
-      var cell = me.map[row][col];
-      if (!cell.counted) {
-        cell.counted = 1;
-        cell.distance = dist + 1;
-        maxDist = (cell.distance > maxDist ? cell.distance : maxDist);
-        //fill(cell.counted*255).strokeWeight(0).textAlign(CENTER,CENTER).text(String(cell.distance), cell.x + offset, cell.y + offset);
-        me.getAccessibleNeighbours(row, col).forEach(function(child) {
-          recurse(child.row, child.col, cell.distance);
-        });
-      }
+    while (stack.length > 0) {
+      var newStack = [];
+      stack.forEach(function(cell) {
+        cell.counted = true;
+        cell.distance = distance;
+        // Draw the current cell
+        fill(cell.counted*255).strokeWeight(0).textAlign(CENTER,CENTER).text(String(cell.distance), cell.x + offset, cell.y + offset);
+        // Get new stack from accessible neighbours that have not already been
+        // dealt with and are not already in the new stack
+        newStack = newStack.concat(me.getAccessibleNeighbours(cell.row, cell.col).filter(function(neighbour) {
+          if (!foundObject(newStack, neighbour) && neighbour.counted == false) {
+            // Draw the neighbour as it is added to the new stack to visualuse
+            // how the new stack is formed
+            fill(neighbour.counted*255).strokeWeight(0).textAlign(CENTER,CENTER).text(String(neighbour.distance), neighbour.x + offset, neighbour.y + offset);
+            return true;
+          }
+          return false;
+        }));
+      });
+      stack = newStack;
+      distance++;
     }
-    recurse(row, col, 0);
   }
 
   this.draw = function() {
     fill(255, 204, 0).stroke(0).strokeWeight(1).ellipse(this.x, this.y, this.diameter, this.diameter);
-    forEach2D(this.map, function(cell, i, j) {
-      fill(cell.distance / maxDist * 255).stroke(bkCol - 10).rect(cell.x, cell.y, cell.x + cellSize, cell.y + cellSize);
-      fill(cell.counted*255).strokeWeight(0).textAlign(CENTER,CENTER).text(String(cell.distance), cell.x + offset, cell.y + offset);
-    });
   }
 }
 
