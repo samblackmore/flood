@@ -7,16 +7,15 @@ var maze = [["NW", "NE", "NW", "NS", "NS", "NS", "NS", "NS", "N", "N", "NS", "NS
 
 function setup() {
   createCanvas(gridSize*cellSize+1, gridSize*cellSize+1);
-  frameRate(3);
+  frameRate(30);
   cWater = color(150, 200, 245);
   cWall = color(50);
   //var minSide = (width < height ? width : height) - 1;
   //cellSize = Math.floor(minSide / gridSize);
   grid = new Grid(maze);
-  mouse = new Character(0, gridSize-1);
+  mouse = new Character(8,7);
   mouse.map = mouse.makeMap(maze);
   mouse.seek(8,7);
-  mouse.animateFlood = true;
 }
 
 function draw() {
@@ -24,6 +23,14 @@ function draw() {
   mouse.draw();
   grid.draw();
   fill(255,0,0).textAlign(LEFT,TOP).text(frameCount, 10, 10);
+}
+
+function mouseClicked() {
+  var col = Math.floor(mouseX/cellSize),
+      row = Math.floor(mouseY/cellSize);
+  mouse = new Character(row,col);
+  mouse.map = mouse.makeMap(maze);
+  mouse.seek(row,col);
 }
 
 function found(place, thing) {
@@ -73,13 +80,14 @@ function Character(row, col) {
   var offset = cellSize/2;
   this.row = row;
   this.col = col;
-  this.x = this.row * cellSize + offset;
-  this.y = this.col * cellSize + offset;
+  this.x = this.col * cellSize + offset;
+  this.y = this.row * cellSize + offset;
   this.diameter = cellSize/3;
   this.map;
   this.stack;
   this.distance = 0;
   this.maxDistance = 0;
+  this.animateFlood = true;
 
   this.getNeighbour = function(row, col, dir) {
     switch(dir) {
