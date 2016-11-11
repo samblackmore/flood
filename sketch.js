@@ -1,26 +1,28 @@
 var gridSize = 16,
     cellSize = 48,
     bkCol = 200,
-    mouse,
-    maxDist = 0;
+    mouse;
 
 var maze = [["NW", "NE", "NW", "NS", "NS", "NS", "NS", "NS", "N", "N", "NS", "NS", "NS", "NS", "N", "NE"], ["WE", "WE", "WS", "NE", "NW", "NS", "NS", "NES", "WE", "W", "NS", "NS", "NS", "NE", "WE", "WE"], ["WE", "WS", "N", "ES", "WS", "NS", "NS", "NS", "ES", "WE", "NWS", "NS", "NS", "E", "WE", "WE"], ["WE", "NW", "E", "NW", "NS", "N", "NS", "NS", "NS", "S", "NS", "NS", "NS", "ES", "WE", "WE"], ["WE", "WE", "WS", "E", "NWE", "W", "NS", "NS", "NS", "NS", "NS", "N", "NE", "NW", "E", "WE"], ["WE", "WS", "NE", "W", "E", "W", "NS", "N", "NS", "NS", "NE", "WE", "WE", "WES", "WE", "WE"], ["W", "N", "ES", "WE", "WE", "WE", "NW", "ES", "NW", "NE", "WS", "E", "W", "NS", "ES", "WE"], ["WE", "WS", "NE", "WE", "WE", "WE", "WE", "NW", "E", "WS", "NE", "WE", "WS", "NE", "NW", "E"], ["WE", "NW", "E", "WE", "WE", "WE", "WE", "WS", "ES", "NW", "ES", "WS", "NE", "WE", "WE", "WE"], ["WE", "WE", "WE", "WS", "ES", "WE", "WS", "NS", "NE", "WS", "NE", "NW", "ES", "WE", "WE", "WE"], ["WE", "WE", "WE", "NWS", "NS", "S", "NS", "NE", "WS", "NE", "W", "ES", "NW", "E", "WE", "WE"], ["WE", "WE", "W", "NS", "NE", "NW", "NE", "WS", "NE", "WS", "E", "NW", "ES", "WE", "WE", "WE"], ["WS", "E", "WS", "NES", "WE", "WE", "WS", "NE", "WS", "N", "S", "S", "NS", "ES", "WE", "WE"], ["NW", "E", "NWS", "NS", "E", "WS", "NE", "WS", "NE", "WS", "NS", "NS", "NS", "NS", "E", "WE"], ["WE", "W", "NS", "NS", "ES", "NWE", "WS", "NE", "WS", "NS", "NS", "NS", "NS", "NS", "ES", "WE"], ["WES", "WS", "NS", "NS", "NS", "S", "NS", "S", "NS", "NS", "NS", "NS", "NS", "NS", "NS", "ES"]]
 
 function setup() {
   createCanvas(gridSize*cellSize+1, gridSize*cellSize+1);
   background(bkCol);
-  noLoop();
+  frameRate(3);
   //var minSide = (width < height ? width : height) - 1;
   //cellSize = Math.floor(minSide / gridSize);
   grid = new Grid(maze);
   mouse = new Character(0, gridSize-1);
   mouse.map = mouse.makeMap(maze);
+  mouse.seek(8,7);
+  mouse.animateFlood = true;
 }
 
 function draw() {
   grid.draw();
-  mouse.seek(8,7);
+  mouse.floodOnce();
   mouse.draw();
+  fill(255,0,0).textAlign(LEFT,TOP).text(frameCount, 10, 10);
 }
 
 function found(place, thing) {
@@ -75,6 +77,8 @@ function Character(row, col) {
   this.y = this.col * cellSize + offset;
   this.diameter = cellSize/3;
   this.map;
+  this.stack;
+  this.distance = 0;
 
   this.getNeighbour = function(row, col, dir) {
     switch(dir) {
@@ -104,36 +108,34 @@ function Character(row, col) {
   }
 
   this.seek = function(row, col) {
-    var me = this,
-        stack = [me.map[row][col]],
-        distance = 0;
+    this.stack = [this.map[row][col]];
+  }
 
-    while (stack.length > 0) {
-      var newStack = [];
-      stack.forEach(function(cell) {
-        cell.counted = true;
-        cell.distance = distance;
-        // Draw the current cell
-        fill(cell.counted*255).strokeWeight(0).textAlign(CENTER,CENTER).text(String(cell.distance), cell.x + offset, cell.y + offset);
-        // Get new stack from accessible neighbours that have not already been
-        // dealt with and are not already in the new stack
-        newStack = newStack.concat(me.getAccessibleNeighbours(cell.row, cell.col).filter(function(neighbour) {
-          if (!foundObject(newStack, neighbour) && neighbour.counted == false) {
-            // Draw the neighbour as it is added to the new stack to visualuse
-            // how the new stack is formed
-            fill(neighbour.counted*255).strokeWeight(0).textAlign(CENTER,CENTER).text(String(neighbour.distance), neighbour.x + offset, neighbour.y + offset);
-            return true;
-          }
-          return false;
-        }));
-      });
-      stack = newStack;
-      distance++;
-    }
+  this.floodOnce = function() {
+    var me = this,
+        newStack = [];
+    this.stack.forEach(function(cell) {
+      cell.counted = true;
+      cell.distance = me.distance;
+      newStack = newStack.concat(me.getAccessibleNeighbours(cell.row, cell.col).filter(function(neighbour) {
+        return !foundObject(newStack, neighbour) && neighbour.counted == false;}));
+    });
+    this.stack = newStack;
+    this.distance++;
   }
 
   this.draw = function() {
+    var me = this;
     fill(255, 204, 0).stroke(0).strokeWeight(1).ellipse(this.x, this.y, this.diameter, this.diameter);
+    if (this.animateFlood) {
+      forEach2D(this.map, function(cell, i, j) {
+        me.drawDistance(cell);
+      });
+    }
+  }
+
+  this.drawDistance = function(cell) {
+    fill(cell.counted*255).strokeWeight(0).textAlign(CENTER,CENTER).text(String(cell.distance), cell.x + offset, cell.y + offset);
   }
 }
 
