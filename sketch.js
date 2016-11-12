@@ -1,6 +1,6 @@
 var gridSize = 16,
     cellSize = 48,
-    cWater, cWall, cYellow, cGreen,
+    cWater, cWall, cYellow, cGreen, cRed,
     blob;
 
 var maze = [["NW", "NE", "NW", "NS", "NS", "NS", "NS", "NS", "N", "N", "NS", "NS", "NS", "NS", "N", "NE"], ["WE", "WE", "WS", "NE", "NW", "NS", "NS", "NES", "WE", "W", "NS", "NS", "NS", "NE", "WE", "WE"], ["WE", "WS", "N", "ES", "WS", "NS", "NS", "NS", "ES", "WE", "NWS", "NS", "NS", "E", "WE", "WE"], ["WE", "NW", "E", "NW", "NS", "N", "NS", "NS", "NS", "S", "NS", "NS", "NS", "ES", "WE", "WE"], ["WE", "WE", "WS", "E", "NWE", "W", "NS", "NS", "NS", "NS", "NS", "N", "NE", "NW", "E", "WE"], ["WE", "WS", "NE", "W", "E", "W", "NS", "N", "NS", "NS", "NE", "WE", "WE", "WES", "WE", "WE"], ["W", "N", "ES", "WE", "WE", "WE", "NW", "ES", "NW", "NE", "WS", "E", "W", "NS", "ES", "WE"], ["WE", "WS", "NE", "WE", "WE", "WE", "WE", "NW", "E", "WS", "NE", "WE", "WS", "NE", "NW", "E"], ["WE", "NW", "E", "WE", "WE", "WE", "WE", "WS", "ES", "NW", "ES", "WS", "NE", "WE", "WE", "WE"], ["WE", "WE", "WE", "WS", "ES", "WE", "WS", "NS", "NE", "WS", "NE", "NW", "ES", "WE", "WE", "WE"], ["WE", "WE", "WE", "NWS", "NS", "S", "NS", "NE", "WS", "NE", "W", "ES", "NW", "E", "WE", "WE"], ["WE", "WE", "W", "NS", "NE", "NW", "NE", "WS", "NE", "WS", "E", "NW", "ES", "WE", "WE", "WE"], ["WS", "E", "WS", "NES", "WE", "WE", "WS", "NE", "WS", "N", "S", "S", "NS", "ES", "WE", "WE"], ["NW", "E", "NWS", "NS", "E", "WS", "NE", "WS", "NE", "WS", "NS", "NS", "NS", "NS", "E", "WE"], ["WE", "W", "NS", "NS", "ES", "NWE", "WS", "NE", "WS", "NS", "NS", "NS", "NS", "NS", "ES", "WE"], ["WES", "WS", "NS", "NS", "NS", "S", "NS", "S", "NS", "NS", "NS", "NS", "NS", "NS", "NS", "ES"]]
@@ -8,6 +8,7 @@ var maze = [["NW", "NE", "NW", "NS", "NS", "NS", "NS", "NS", "N", "N", "NS", "NS
 function setup() {
   createCanvas(gridSize*cellSize+1, gridSize*cellSize+1);
   frameRate(30);
+  cRed = color(245, 75, 20);
   cGreen = color(40, 220, 130);
   cYellow = color(255, 204, 0);
   cWater = color(150, 200, 245);
@@ -88,7 +89,7 @@ function Character(row, col) {
   this.maxDistance = 0;
   this.animateFlood = true;
   this.phase = 0;
-  this.color = cYellow;
+  this.color = cRed;
 
   this.step = function() {
     switch (this.phase) {
@@ -96,13 +97,17 @@ function Character(row, col) {
         break;
 
       case 1:   // flooding map
-        this.color = cYellow;
-        this.floodOnce(); break;
+        this.color = cRed;
+        this.floodOnce();
+        break;
 
       case 2:   // seeking target
-        this.color = cGreen; break;
+        this.color = cYellow;
+        this.seekOnce();
+        break;
 
       case 3:   // moving
+        this.color = cGreen;
         break;
     }
   }
@@ -111,6 +116,7 @@ function Character(row, col) {
     forEach2D(this.map, function(cell) {
       cell.counted = false;
       cell.distance = 0;
+      cell.path = 0;
     });
     this.stack = [this.map[row][col]];
     this.distance = 0;
@@ -161,10 +167,26 @@ function Character(row, col) {
       this.stack = newStack;
       this.distance++;
     } else {
-      this.stack = [];
-      this.distance = 0;
+      this.stack = [this.map[me.row][me.col]];
       this.phase++;
     }
+  }
+
+  this.seekOnce = function() {
+    var me = this,
+        newStack = [];
+    this.stack.forEach(function(cell) {
+      cell.path = true;
+      newStack = newStack.concat(me.getAccessibleNeighbours(cell.row, cell.col).filter(function(neighbour) {
+         return neighbour.distance < cell.distance;
+      }));
+    });
+    if (newStack.length > 0) {
+      newStack.forEach(function(cell) {cell.path = true;});
+      this.stack = newStack;
+    }
+    else
+      this.phase++;
   }
 
   /* ------------------------------ DRAWING ------------------------------ */
@@ -174,6 +196,7 @@ function Character(row, col) {
       var me = this;
       forEach2D(this.map, function(cell, i, j) {
         me.drawWater(cell);
+        me.drawPath(cell);
         me.drawDistance(cell);
       });
     }
@@ -189,6 +212,11 @@ function Character(row, col) {
     if (isNaN(fraction)) fraction = 0;
     fill(fraction*red(cWater),fraction*green(cWater),fraction*blue(cWater)).rect(cell.x, cell.y, cell.x + cellSize, cell.y + cellSize);
   }
+
+  this.drawPath = function(cell) {
+    var c = color(red(cGreen),green(cGreen),blue(cGreen),100);
+    if (cell.path) fill(c).rect(cell.x, cell.y, cell.x + cellSize, cell.y + cellSize);
+  }
 }
 
 Character.prototype.makeMap = function(maze) {
@@ -197,6 +225,7 @@ Character.prototype.makeMap = function(maze) {
       walls: cell.split(""),
       counted: false,
       distance: 0,
+      path: false,
       row: i,
       col: j,
       x: j * cellSize,
