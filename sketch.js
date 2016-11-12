@@ -1,26 +1,27 @@
 var gridSize = 16,
     cellSize = 48,
-    cWater, cWall,
-    mouse;
+    cWater, cWall, cYellow, cGreen,
+    blob;
 
 var maze = [["NW", "NE", "NW", "NS", "NS", "NS", "NS", "NS", "N", "N", "NS", "NS", "NS", "NS", "N", "NE"], ["WE", "WE", "WS", "NE", "NW", "NS", "NS", "NES", "WE", "W", "NS", "NS", "NS", "NE", "WE", "WE"], ["WE", "WS", "N", "ES", "WS", "NS", "NS", "NS", "ES", "WE", "NWS", "NS", "NS", "E", "WE", "WE"], ["WE", "NW", "E", "NW", "NS", "N", "NS", "NS", "NS", "S", "NS", "NS", "NS", "ES", "WE", "WE"], ["WE", "WE", "WS", "E", "NWE", "W", "NS", "NS", "NS", "NS", "NS", "N", "NE", "NW", "E", "WE"], ["WE", "WS", "NE", "W", "E", "W", "NS", "N", "NS", "NS", "NE", "WE", "WE", "WES", "WE", "WE"], ["W", "N", "ES", "WE", "WE", "WE", "NW", "ES", "NW", "NE", "WS", "E", "W", "NS", "ES", "WE"], ["WE", "WS", "NE", "WE", "WE", "WE", "WE", "NW", "E", "WS", "NE", "WE", "WS", "NE", "NW", "E"], ["WE", "NW", "E", "WE", "WE", "WE", "WE", "WS", "ES", "NW", "ES", "WS", "NE", "WE", "WE", "WE"], ["WE", "WE", "WE", "WS", "ES", "WE", "WS", "NS", "NE", "WS", "NE", "NW", "ES", "WE", "WE", "WE"], ["WE", "WE", "WE", "NWS", "NS", "S", "NS", "NE", "WS", "NE", "W", "ES", "NW", "E", "WE", "WE"], ["WE", "WE", "W", "NS", "NE", "NW", "NE", "WS", "NE", "WS", "E", "NW", "ES", "WE", "WE", "WE"], ["WS", "E", "WS", "NES", "WE", "WE", "WS", "NE", "WS", "N", "S", "S", "NS", "ES", "WE", "WE"], ["NW", "E", "NWS", "NS", "E", "WS", "NE", "WS", "NE", "WS", "NS", "NS", "NS", "NS", "E", "WE"], ["WE", "W", "NS", "NS", "ES", "NWE", "WS", "NE", "WS", "NS", "NS", "NS", "NS", "NS", "ES", "WE"], ["WES", "WS", "NS", "NS", "NS", "S", "NS", "S", "NS", "NS", "NS", "NS", "NS", "NS", "NS", "ES"]]
 
 function setup() {
   createCanvas(gridSize*cellSize+1, gridSize*cellSize+1);
   frameRate(30);
+  cGreen = color(40, 220, 130);
+  cYellow = color(255, 204, 0);
   cWater = color(150, 200, 245);
   cWall = color(50);
   //var minSide = (width < height ? width : height) - 1;
   //cellSize = Math.floor(minSide / gridSize);
   grid = new Grid(maze);
-  mouse = new Character(8,7);
-  mouse.map = mouse.makeMap(maze);
-  mouse.seek(8,7);
+  blob = new Character(8,7);
+  blob.map = blob.makeMap(maze);
 }
 
 function draw() {
-  mouse.floodOnce();
-  mouse.draw();
+  blob.step();
+  blob.draw();
   grid.draw();
   fill(255,0,0).textAlign(LEFT,TOP).text(frameCount, 10, 10);
 }
@@ -28,9 +29,7 @@ function draw() {
 function mouseClicked() {
   var col = Math.floor(mouseX/cellSize),
       row = Math.floor(mouseY/cellSize);
-  mouse = new Character(row,col);
-  mouse.map = mouse.makeMap(maze);
-  mouse.seek(row,col);
+  blob.setTarget(row,col);
 }
 
 function found(place, thing) {
@@ -88,6 +87,38 @@ function Character(row, col) {
   this.distance = 0;
   this.maxDistance = 0;
   this.animateFlood = true;
+  this.phase = 0;
+  this.color = cYellow;
+
+  this.step = function() {
+    switch (this.phase) {
+      case 0:   // waiting for target
+        break;
+
+      case 1:   // flooding map
+        this.color = cYellow;
+        this.floodOnce(); break;
+
+      case 2:   // seeking target
+        this.color = cGreen; break;
+
+      case 3:   // moving
+        break;
+    }
+  }
+
+  this.setTarget = function(row, col) {
+    forEach2D(this.map, function(cell) {
+      cell.counted = false;
+      cell.distance = 0;
+    });
+    this.stack = [this.map[row][col]];
+    this.distance = 0;
+    this.maxDistance = 0;
+    this.phase = 1;
+  }
+
+  /* --------------------------- FLOODING --------------------------- */
 
   this.getNeighbour = function(row, col, dir) {
     switch(dir) {
@@ -116,10 +147,6 @@ function Character(row, col) {
     return this.getNeighbours(row, col, this.getAccessibleDirections(row, col));
   }
 
-  this.seek = function(row, col) {
-    this.stack = [this.map[row][col]];
-  }
-
   this.floodOnce = function() {
     var me = this,
         newStack = [];
@@ -130,19 +157,27 @@ function Character(row, col) {
       newStack = newStack.concat(me.getAccessibleNeighbours(cell.row, cell.col).filter(function(neighbour) {
         return !foundObject(newStack, neighbour) && neighbour.counted == false;}));
     });
-    this.stack = newStack;
-    this.distance++;
+    if (newStack.length > 0) {
+      this.stack = newStack;
+      this.distance++;
+    } else {
+      this.stack = [];
+      this.distance = 0;
+      this.phase++;
+    }
   }
 
+  /* ------------------------------ DRAWING ------------------------------ */
+
   this.draw = function() {
-    var me = this;
     if (this.animateFlood) {
+      var me = this;
       forEach2D(this.map, function(cell, i, j) {
         me.drawWater(cell);
         me.drawDistance(cell);
       });
     }
-    fill(255, 204, 0).stroke(0).strokeWeight(1).ellipse(this.x, this.y, this.diameter, this.diameter);
+    fill(this.color).stroke(0).strokeWeight(1).ellipse(this.x, this.y, this.diameter, this.diameter);
   }
 
   this.drawDistance = function(cell) {
