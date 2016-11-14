@@ -153,19 +153,22 @@ function Character(row, col) {
 
   this.floodOnce = function() {
     var me = this,
+        myCell = this.map[this.row][this.col],
         newStack = [];
+
     this.stack.forEach(function(cell) {
       cell.counted = true;
       cell.distance = me.maxDistance;
       newStack = newStack.concat(me.getAccessibleNeighbours(cell.row, cell.col).filter(function(neighbour) {
         return !foundObject(newStack, neighbour) && neighbour.counted == false;}));
     });
-    if (newStack.length > 0) {
+    
+    if (foundObject(this.stack, myCell) || newStack.length == 0) {
+      this.stack = [myCell];
+      this.phase++;
+    } else {
       this.stack = newStack;
       this.maxDistance++;
-    } else {
-      this.stack = [this.map[me.row][me.col]];
-      this.phase++;
     }
   }
 
