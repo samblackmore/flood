@@ -85,7 +85,6 @@ function Character(row, col) {
   this.diameter = cellSize/3;
   this.map;
   this.stack;
-  this.distance = 0;
   this.maxDistance = 0;
   this.animateFlood = true;
   this.phase = 0;
@@ -119,7 +118,6 @@ function Character(row, col) {
       cell.path = 0;
     });
     this.stack = [this.map[row][col]];
-    this.distance = 0;
     this.maxDistance = 0;
     this.phase = 1;
   }
@@ -158,14 +156,13 @@ function Character(row, col) {
         newStack = [];
     this.stack.forEach(function(cell) {
       cell.counted = true;
-      cell.distance = me.distance;
-      me.maxDistance = Math.max(me.distance, me.maxDistance);
+      cell.distance = me.maxDistance;
       newStack = newStack.concat(me.getAccessibleNeighbours(cell.row, cell.col).filter(function(neighbour) {
         return !foundObject(newStack, neighbour) && neighbour.counted == false;}));
     });
     if (newStack.length > 0) {
       this.stack = newStack;
-      this.distance++;
+      this.maxDistance++;
     } else {
       this.stack = [this.map[me.row][me.col]];
       this.phase++;
